@@ -1,58 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pool Simulation Table</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pool Table</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js">
+    </script>
 
-    <style>
-        /* CSS for the pool table */
-        #line {
-        position: absolute;
-        background-color: white;
-        width: 3px; /* Change the width as needed */
-        }
-    </style>
-</head>
 
-<body>
-    <svg width="700" height="1375" viewBox="-25 -25 1400 2750"
-    xmlns="http://www.w3.org/2000/svg"
-    xmlns:xlink="http://www.w3.org/1999/xlink">
-        <rect width="1350" height="2700" x="0" y="0" fill="#C0D0C0" />
-        <rect width="1400" height="25" x="-25" y="-25" fill="darkgreen" />
-        <rect width="1400" height="25" x="-25" y="2700" fill="darkgreen" />
-        <rect width="25" height="2750" x="-25" y="-25" fill="darkgreen" />
-        <rect width="25" height="2750" x="1350" y="-25" fill="darkgreen" />
-        <circle cx="0.0" cy="0.0" r="114.0" fill="black" />
-        <circle cx="0.0" cy="1350.0" r="114.0" fill="black" />
-        <circle cx="0.0" cy="2700.0" r="114.0" fill="black" />
-        <circle cx="1350.0" cy="0.0" r="114.0" fill="black" />
-        <circle cx="1350.0" cy="1350.0" r="114.0" fill="black" />
-        <circle cx="1350.0" cy="2700.0" r="114.0" fill="black" />
-        
-        <circle cx="672" cy="675" r="28" fill="YELLOW" />
-        <circle cx="644" cy="622" r="28" fill="BLUE" />
-        <circle cx="700" cy="622" r="28" fill="RED" />
-        <circle cx="616" cy="569" r="28" fill="PURPLE" />
-        <circle cx="672" cy="569" r="28" fill="ORANGE" />
-        <circle cx="728" cy="569" r="28" fill="GREEN" />
-        <circle cx="588" cy="516" r="28" fill="BROWN" />
-        <circle cx="644" cy="516" r="28" fill="BLACK" />
-        <circle cx="700" cy="516" r="28" fill="LIGHTYELLOW" />
-        <circle cx="756" cy="516" r="28" fill="LIGHTBLUE" />
-        <circle cx="616" cy="463" r="28" fill="PINK" />
-        <circle cx="672" cy="463" r="28" fill="MEDIUMPURPLE" />
-        <circle cx="728" cy="463" r="28" fill="LIGHTSALMON" />
-        <circle cx="644" cy="410" r="28" fill="LIGHTGREEN" />
-        <circle cx="700" cy="410" r="28" fill="SANDYBROWN" />
+    <script>
+      $(document).ready(function() {
+      function trackit(event) {
+          $('#valx').remove();
+          $('#valy').remove();
+          $('<div id="valx">'+event.pageX+'</div>').appendTo("#x");
+          $('<div id="valy">'+event.pageY+'</div>').appendTo("#y");
+      }
 
-        <circle id="cue-ball" cx="672" cy="2025" r="28" fill="WHITE" />
-    </svg>
-    
-    <div id="line"></div>
-    <div id="results" style="margin-top: 20px;"></div>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+        $('svg').mousemove(trackit);
+
+      });
+
+
+    </script>
     <script src="cueshot.js"></script>
-</body>
+
+  </head>
+  <body>
+    <div id="svg_box">
+      <svg width="700" height="1375" viewBox="-25 -25 1400 2750"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink">
+            <defs>
+              <clipPath id="tableClip">
+                  <rect width="1350" height="2700" x="0" y="0"/>
+              </clipPath>
+            </defs>
+            <rect width="1350" height="2700" x="0" y="0" fill="#C0D0C0" /> 
+            <rect width="1400" height="25" x="-25" y="-25" fill="darkgreen" />
+            <rect width="1400" height="25" x="-25" y="2700" fill="darkgreen"/>
+            <rect width="25" height="2750" x="-25" y="-25" fill="darkgreen" />
+            <rect width="25" height="2750" x="1350" y="-25" fill="darkgreen" />
+            <circle cx="0" cy="0" r="114" fill="black" clip-path="url(#tableClip)"/>
+            <circle cx="0" cy="1350" r="114" fill="black" clip-path="url(#tableClip)"/>
+            <circle cx="0" cy="2700" r="114" fill="black" clip-path="url(#tableClip)"/>
+            <circle cx="1350" cy="0" r="114" fill="black" clip-path="url(#tableClip)"/>
+            <circle cx="1350" cy="1350" r="114" fill="black" clip-path="url(#tableClip)"/>
+            <circle cx="1350" cy="2700" r="114" fill="black" clip-path="url(#tableClip)"/>
+        
+            <circle cx="553" cy="674" r="28" fill="SANDYBROWN" />
+            <circle cx="615" cy="674" r="28" fill="LIGHTGREEN" />
+            <circle cx="675" cy="674" r="28" fill="LIGHTSALMON" />
+            <circle cx="737" cy="676" r="28" fill="MEDIUMPURPLE" />
+            <circle cx="795" cy="673" r="28" fill="PINK" />
+            <circle cx="765" cy="726" r="28" fill="LIGHTBLUE" />
+            <circle cx="704" cy="726" r="28" fill="LIGHTYELLOW" />
+            <circle cx="644" cy="729" r="28" fill="BLACK" />
+            <circle cx="584" cy="728" r="28" fill="BROWN" />
+            <circle cx="612" cy="780" r="28" fill="GREEN" />
+            <circle cx="676" cy="779" r="28" fill="ORANGE" />
+            <circle cx="737" cy="779" r="28" fill="PURPLE" />
+            <circle cx="706" cy="832" r="28" fill="RED" />
+            <circle cx="645" cy="832" r="28" fill="BLUE" />
+            <circle cx="675" cy="885" r="28" fill="YELLOW" />
+            <circle cx="677" cy="2025" r="28" fill="WHITE" />
+
+
+            <line id="line" x1="0" y1="0" x2="0" y2="0" stroke="black" stroke-width="4" style="display: none;"></line>
+
+          </svg>
+
+      </div>
+
+  </body>
 </html>

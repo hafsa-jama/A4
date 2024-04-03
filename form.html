@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pool Game Setup</title>
+  
+  <!-- Including jQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+    }
+
+    #gameForm {
+      background-color: #ffffff;
+      padding: 15px;
+      border-radius: 5px;
+      width: 100%;
+      max-width: 360px;
+      margin: 20px auto;
+    }
+
+    h3 {
+      margin-top: 0;
+      color: #444;
+    }
+
+    label {
+      margin: 15px 0 5px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+
+    input[type="submit"] {
+      width: 100%;
+      padding: 10px;
+      background-color: #5cb85c;
+      border: none;
+      border-radius: 3px;
+      color: white;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #4cae4c;
+    }
+  </style>
+  <script>
+    $(document).ready(function() {
+      $("#gameForm").submit(function(event) {
+        event.preventDefault();
+
+        var formData = {
+          player1_name: $("#player1_name").val(),
+          player2_name: $("#player2_name").val(),
+          game_name: $("#game_name").val()
+        };
+
+        $.ajax({
+          url: "/formresponse",
+          type: "POST",
+          contentType: "application/json",
+          data: JSON.stringify(formData),
+          success: function(data, status) {
+            alert("Game Created Successfully. Status: " + status);
+            window.location.href = "display.html";
+          },
+          error: function(xhr, status, error) {
+            console.error("Submission Error:", error);
+          }
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <form id="gameForm">
+    <div>
+      <h3>Player 1</h3>
+      <label for="player1_name">Player Name:</label>
+      <input type="text" id="player1_name" name="player1_name" required />
+    </div>
+    <div>
+      <h3>Player 2</h3>
+      <label for="player2_name">Player Name:</label>
+      <input type="text" id="player2_name" name="player2_name" required />
+    </div>
+    <div>
+      <h3>Game Details</h3>
+      <label for="game_name">Game Name:</label>
+      <input type="text" id="game_name" name="game_name" required />
+    </div>
+    <div>
+      <input type="submit" value="Start Game" />
+    </div>
+  </form>
+</body>
+</html>

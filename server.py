@@ -15,215 +15,241 @@ from Physics import *
 # used to parse the URL and extract form data for GET requests
 from urllib.parse import urlparse, parse_qsl;
 
-# HTTP server that includes a connection to the database
+instance_table = Physics.Table() # creates an instance of table
+svg_creation = instance_table.setup_pool_table() # sets up the pool table
+
+# define global variable for players names and game name 
+player1_name = ''
+player2_name = ''
+game_name = ''
+
+# here we have an HTTP server that includes a connection to the database
 class EnhancedHTTPServer(HTTPServer):
     # initializes the server with an address, request handler class, and database connection
     def __init__(self, server_address, RequestHandlerClass, db):
         super().__init__(server_address, RequestHandlerClass)  # initializes the parent class
         self.db = db  # here we store the database connection in the server instance
 
-
-class myHTTPRequestHandler (BaseHTTPRequestHandler):
-
-    # method that sets up the handler
-    def setup(self):
-        super().setup()
-        self.db = self.server.db # stores the dabatase connection
-
-    def db(self):
-        return self.server.db
+class MyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        """Handles GET requests from clients, serving specific files based on the request URL."""
-        # Parse the URL to extract the path and potentially any query data
+
         parsed = urlparse(self.path)
-         # Serve static files with a generic handler
+
         if parsed.path.startswith('/'):
-            # Construct the file path
             filepath = '.' + self.path  # Assuming files are served from the current directory
             if os.path.isfile(filepath):
-                # Determine the file's MIME type and serve it
+                # here we determine the file's MIME type and serve it
                 mimetype, _ = mimetypes.guess_type(filepath)
                 try:
                     with open(filepath, 'rb') as file:
-                        content = file.read()
-                        self.send_response(200)
-                        self.send_header('Content-type', mimetype or 'application/octet-stream')
-                        self.send_header('Content-length', len(content))
-                        self.end_headers()
-                        self.wfile.write(content)
-                        return
+                        content = file.read().decode('utf-8')
+                    
+                    svg_content = svg_creation.svg()
+                    # Replace the placeholder for SVG content with the actual SVG string
+                    content = content.replace('<!-- SVG_CONTENT -->', svg_content)
+                    self.send_response(200)
+                    self.send_header('Content-type', mimetype or 'application/octet-stream')
+                    self.end_headers()
+                    self.wfile.write(content.encode('utf-8'))
                 except FileNotFoundError:
-                    pass  # File was not found; handle below with a 404 response
-        # Serve the HTML page if the request path is '/shoot.html'
-        elif parsed.path == '/display.html':
-            # Attempt to open and read the specified HTML file
+                    self.send_error(404, 'File Not Found: %s' % self.path)
+                
+        elif parsed.path.endswith(".js"):
             try:
-                with open('.' + self.path, 'rb') as fp:  # Open the file in binary mode to read
-                    content = fp.read()
-                    # Send a 200 OK response along with headers for content type and length
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/html")
-                    self.send_header("Content-length", len(content))
-                    self.end_headers()
-                    # Write the file content to the response body
-                    self.wfile.write(content)
-            except FileNotFoundError:
-                # If the file is not found, send a 404 response
-                self.send_error(404, "File not found")
-
-        # Serve SVG files matching a specific naming pattern '/table-*.svg'
-        elif self.path.startswith("/table-") and self.path.endswith(".svg"):
-            # Construct the file path by removing the leading slash
-            filename = self.path[1:]
-            
-            # Check if the file exists and serve it if so
-            try:
-                with open(filename, 'rb') as file:  # Open the file in binary mode to read
+                with open('.' + self.path, 'rb') as file:
                     content = file.read()
-                    # Send a 200 OK response with SVG content type and length headers
-                    self.send_response(200)
-                    self.send_header('Content-type', 'image/svg+xml')
-                    self.send_header('Content-length', len(content))
-                    self.end_headers()
-                    # Write the SVG content to the response body
-                    self.wfile.write(content)
+                self.send_response(200)
+                self.send_header("Content-type", "application/javascript")
+                self.send_header("Content-length", len(content))
+                self.end_headers()
+                self.wfile.write(content)
             except FileNotFoundError:
-                # If the SVG file is not found, send a 404 response
-                self.send_error(404, "File not found")
+                self.send_error(404, 'File Not Found: %s' % self.path)
+
+        elif parsed.path.startswith('/table-') and parsed.path.endswith('.svg'):
+            # Serve SVG files
+            table_file = parsed.path[1:]
+            #print(table_file)
+            if os.path.exists(table_file):
+                with open(table_file, 'rb') as file:
+                    content = file.read()
+                    #print("CONTENT: ", str(content))
+                self.send_response(200)
+                self.send_header('Content-type', 'image/svg+xml')
+                self.end_headers()
+                self.wfile.write(content);
+                
+            else:
+                self.send_error(404, 'File Not Found: %s' % self.path)
+
+
         else:
-            # For any other requests not matching the above criteria, send a 404 Not Found response
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(bytes("404: %s not found" % self.path, "utf-8"))
+            # generate 404 for GET requests that aren't the 3 files above
+            self.send_response( 404 );
+            self.end_headers();
+            self.wfile.write( bytes( "404: %s not found" % self.path, "utf-8" ) );
 
 
     def do_POST(self):
-        # handle post request
-        # parse the URL to get the path and form data
-        parsed  = urlparse(self.path);
+        
+        # define global variables to hold player names and the game name
+        global player1_name, player2_name, game_name, svg_creation, html_content
 
-        if parsed.path == '/display.html':
+        # parse the URL to get data
+        parsed_url = urlparse(self.path)
 
-            # recieves form data supplied from shoot.html page
-            form = cgi.FieldStorage( fp=self.rfile,
-                                     headers=self.headers,
-                                     environ = { 'REQUEST_METHOD': 'POST',
-                                                 'CONTENT_TYPE': 
-                                                   self.headers['Content-Type'],
-                                               } 
-                                   );
+        # handling '/send' path for processing game actions
+        if parsed_url.path == '/send':
+            print("Processing /send request")
+
+            # we retirve player names and game name from global variables
+            player1Name = player1_name
+            player2Name = player2_name
+            gameName = game_name
             
-
-            # deletes all of the existing table-?.svg files
-            for filename in os.listdir():
-                if filename.startswith("table-") and filename.endswith(".svg"):
-                    os.remove(filename)  # removes all of the matching files
-
-            # makes the table and initalize the board
-            table = Physics.Table()
-
-            # calculates the acceleration 
-            pos_sb = Physics.Coordinate(float(form['sb_x'].value), float(form['sb_y'].value))
-            sb = Physics.StillBall(1, pos_sb)
-
-            pos_rb = Physics.Coordinate(float(form['rb_x'].value), float(form['rb_y'].value))
-            vel_rb = Physics.Coordinate(float(form['rb_dx'].value), float(form['rb_dy'].value))
-
-            ball_speed = math.sqrt(vel_rb.x ** 2 + vel_rb.y ** 2)
-
-            if ball_speed > Physics.VEL_EPSILON:
-                acc_rb = Physics.Coordinate((vel_rb.x) / ball_speed * Physics.DRAG, (vel_rb.y) / ball_speed * Physics.DRAG)
-
-            rb = Physics.RollingBall(0, pos_rb, vel_rb, acc_rb)
-
-            # adds the balls to the table
-            table += sb
-            table += rb
-
-            # saves all of the table-?.svg files
-            file_index = 0
-            while table:
-                with open("table-{}.svg".format(file_index), "w") as file:
-                    # writes the SVG representation of the table to the file
-                    file.write(table.svg())
-                    # inside the loop set the value of table to be the return value of calling the segment method of table
-                    table = table.segment()
-                    # increment file index
-                    file_index += 1
-                
-
-            # makes the HTML response page
-            content = generate_html_response(form)
-
-            # send response
-            self.send_response( 200 ); # OK
-            self.send_header( "Content-type", "text/html" );
-            self.send_header( "Content-length", len( content ) );
-            self.end_headers();
-            self.wfile.write( bytes( content, "utf-8" ) );
-
-        if parsed.path == '/simulate-shot':
-
-            global initial_svg_content
-
-            # here we extract content length from header and read POST data
+            # read POST data and convert it from JSON to Python dictionary
             content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            post_data_str = post_data.decode('utf-8')
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            parsed_data = json.loads(post_data)
 
-            # checks if the POST data is not empty and starts with string 
-            if post_data_str and (post_data_str.startswith('{') or post_data_str.startswith('[')):
-                # parses JSON data from POST request.
-                data = json.loads(post_data)
+            # extract velocity data from parsed POST data
+            velocity_x = parsed_data['velocity_x']
+            velocity_y = parsed_data['velocity_y']
+            print(f"Received velocity data: x = {velocity_x}, y = {velocity_y}")
 
-                # here we extract velocityX and velocityY from parsed data
-                velocityX = data['velocityX']
-                velocityY = data['velocityY']
-                print(f"Velocity X: {velocityX}, Velocity Y: {velocityY}")  # Log velocities for debugging.
+            # initialize HTML content with game's layout
+            html_content = "<html><head><title>Pool Game</title><link rel='stylesheet' href='style.css'>"
+            html_content += "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script><script src='cueshot.js'></script></head><body>"
 
-                # creates a new table instance and initalize the board
-                table = Table()
-                cueBall = StillBall(0, Coordinate(0, 0))
-                table += cueBall
+            # create game instance with retrieved player names and game name
+            game = Physics.Game(gameName=gameName, player1Name=player1Name, player2Name=player2Name)
+            
+            # call the shoot function with velocity data and update the SVG representation
+            svg_tables, table = game.shoot(gameName, player1Name, svg_creation, velocity_x, velocity_y)
 
-                game_instance = Game(gameName="ExampleGame", player1Name="Player1", player2Name="Player2")
-                game_instance.shoot("ExampleGame", "Player1", table, velocityX, velocityY)
+            # update global SVG creation content
+            svg_creation = table
+            html_content += """<div id="svgContainer" style="position: relative;">"""
 
-                # Write SVG tables to files for serving
-                for i, svg_table in enumerate(game_instance):
-                    with open(f'table-{i}.svg', 'w') as f:
-                        f.write(svg_table)
+            # concatenate and embed SVG data into the HTML content
+            svg_data = ''.join(svg_tables)
+            html_content += f"""<input type="hidden" id="svgData" value="{svg_data}">"""
+            html_content += "</div></body></html>"
 
-                # Respond with success message.
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                response = json.dumps({'message': 'Shot simulated successfully'})
-                self.wfile.write(response.encode('utf-8'))
+            # finalize HTML content and navigate to the animation page
+            self.handle_animation_request()
+            print("HTML content written and navigation initiated")
 
-                # Respond back with the SVG representation, or potentially save it and respond with a link or status
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(response.encode('utf-8'))
+        # handles '/formresponse' path for setting game setup data
+        elif parsed_url.path == '/formresponse':
+            print("Processing /formresponse request")
 
-            else:                
-                self.send_response(400)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write(bytes("400: Bad Request. Invalid JSON.", "utf-8"))
- 
+            # read and parse POST data to setup game
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            parsed_data = json.loads(post_data)
+
+            # extract and store player names and game name from POST data
+            player1_name = parsed_data.get('player1_name', '')
+            player2_name = parsed_data.get('player2_name', '')
+            game_name = parsed_data.get('game_name', '')
+
+            print(f"Player 1 Name: {player1_name}")
+            print(f"Player 2 Name: {player2_name}")
+            print(f"Game Name: {game_name}")
+
+            # respond with success message
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "Success"}).encode('utf-8'))
+
+        else:
+            # handle unknown POST requests with a 404 error
+            self.send_error(404, f"Could not find {self.path}")
+            print(f"Request for {self.path} could not be processed")
+
+
+    def handle_animation_request(self):
+
+        global html_content
+
+        # write the HTML content to the animate.html file
+        file_path = 'animate.html'
+        with open(file_path, 'w') as file:
+            file.write(html_content)
+        print(f"Content written to {file_path}")
+
+        # respond to the client, indicating where to find the animation
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.send_header('Location', '/animate.html')
+        self.end_headers()
+        self.wfile.write(f'<html><head><meta http-equiv="Refresh" content="0; url=/animate.html"></head></html>'.encode('utf-8'))
+
+
+    def generate_and_serve_svg_string(self):
+        svg_string = ""
+        table_id = 0
+        db = Physics.Database() # initalize connection to database
+
+        try:
+            # here we loop through all tables in the database and append their SVG rep
+            while True:
+                table = db.readTable(table_id)
+                if not table:
+                    break  # exit the loop if no more tables are found
+                svg_string += table.svg()
+                table_id += 1
+        finally:
+            db.close()  # ensure the database is closed even if an error occurs
+
+        if svg_string:
+            # successfully generated SVG content; serve it to the client
+            self.serve_content(svg_string, content_type="image/svg+xml")
+        else:
+            # no SVG content found; send a 404 response
+            self.send_error_response(404, "SVG content not found")
+
+    def delete_existing_svg_files(self):
+        directory = os.getcwd() # gets current working directory
+        for file in os.listdir(directory):
+            if file.startswith("table-") and file.endswith(".svg"):
+                os.remove(os.path.join(directory, file))
+
+    def serve_content(self, content, content_type="text/html", status_code=200):
+        self.send_response(status_code)
+        self.send_header("Content-type", content_type)
+        self.send_header("Content-length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content.encode())
+
+    def send_error_response(self, code, message):
+        """
+        Sends an HTML error response with the specified status code and message.
+        """
+        error_html = f"""
+        <html>
+            <head>
+                <title>Error {code}: {self.responses[code][0]}</title>
+            </head>
+            <body style="display: flex; flex-direction: column; align-items: center;
+                        justify-content: center; height: 100vh; background-color: midnightblue;
+                        color: white;">
+                <h1>Error {code}: {self.responses[code][0]}</h1>
+                <p>{message}</p>
+            </body>
+        </html>
+        """
+        self.serve_content(error_html, content_type="text/html", status_code=code)
+
+
 if __name__ == "__main__":
-
-    db = Database()
-    db.createDB()  
-    db.setGame("SampleGame", "P1", "P2")
-
-    table = Table()
-    db.writeTable(table)
-
-    server_address = ('localhost',int(sys.argv[1]))
-    httpd = EnhancedHTTPServer(server_address, myHTTPRequestHandler, db)
-    print( "Server listing in port:  ", {server_address[1]});
+   
+    db = Database(True) # creates an instance of database
+    db.createDB() # creates the database
+     
+    httpd = HTTPServer(('localhost', int(sys.argv[1])), MyHandler)
+    print( "Server listing in port:  ", int(sys.argv[1]));
     httpd.serve_forever();

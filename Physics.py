@@ -2,6 +2,7 @@ import phylib;
 import sqlite3
 import os
 import random
+import math
 
 ################################################################################
 # constants 
@@ -148,7 +149,7 @@ class HCushion(phylib.phylib_object):
 
     # svg method
     def svg(self):
-        if self.pos.y == 0:
+        if self.obj.hcushion.y == 0:
             y = -25  
         else: 
             y = 2700
@@ -170,7 +171,7 @@ class VCushion(phylib.phylib_object):
         self.__class__ = VCushion
 
     def svg(self):
-        if self.pos.x == 0:
+        if self.obj.vcushion.x == 0:
             x = -25 
         else: 
             x = 1350
@@ -301,63 +302,53 @@ class Table( phylib.phylib_table ):
         return new;
 
     def cueBall(self):
-        for obj in self:
-            if obj.type == phylib.PHYLIB_STILL_BALL and obj.obj.still_ball.number == 0:
-                return obj
+        for ball in self:
+            if ball.type == phylib.PHYLIB_STILL_BALL and ball.obj.still_ball.number == 0:
+                return ball
         return None  # if no cue ball is found
 
-    # function to create pool table
-    def PoolTableCreation(self):
-        table = Table() # initalize the pool table
+    def setup_pool_table(self):
+   
+        # generates a small random offset so we can vary the positions slightly
+        def get_random_nudge():
+            return random.uniform(-1.5, 1.5)
 
-        # this function will apply a small random displacement
-        def applyRandomNudge ():
-            return random.uniform( -1.5, 1.5 );
+        # create a new table instance to populate with balls
+        new_table = Table()
 
-        # to set up the inital triange formation of pool balls
-        triangleRows = [5, 4, 3, 2, 1] # number of balls that should be in each row
+        # here are total # of balls
+        total_balls = 15
 
-        # starting with ball number 15 (it is the highest number ball)
-        currentBallNum = 15
+        # arrangement of balls in rows at the start of the game
+        ball_rows = [5, 4, 3, 2, 1]
 
-        # base positionf for the X and Y coordinates
-        baseXPosition = TABLE_WIDTH / 2.0
-        baseYPosition = TABLE_WIDTH / 2.0
-
-        # for loop that will iterate through each row to position the balls in a triangle
-        for rowIndex, ballsInRow in enumerate(triangleRows):
-            
-            # calculate the base X offset for the current row
-            rowXOffset = (ballsInRow - 1) * (BALL_DIAMETER + 4.0) / 2
-
-            # calculate the Y position based on row index
-            yPosition = baseYPosition + rowIndex * math.sqrt(3.0) / 2.0 * (BALL_DIAMETER + 4.0) + applyRandomNudge()
-
-            for ballIndex in range(ballsInRow):
-                # to calculate x position
-                if rowIndex % 2 == 0:
-                    # even rows: position balls from left to right
-                    xPosition = baseXPosition - rowXOffset + ballIndex * (BALL_DIAMETER + 4.0) + applyRandomNudge()
+        # iterate through each row in the table
+        for i, row_length in enumerate(ball_rows):
+            for j in range(row_length):
+                # here we switch between starting pos for even/odd rows
+                if i % 2 == 0:
+                    x_position = TABLE_WIDTH / 2.0 - (row_length - 1) * (BALL_DIAMETER + 4.0) / 2 + j * (BALL_DIAMETER + 4.0) + get_random_nudge()
                 else:
-                    # odd rows: position balls from right to left
-                    xPosition = baseXPosition + ballIndex * (BALL_DIAMETER + 4.0) - rowXOffset + applyRandomNudge()
+                    x_position = TABLE_WIDTH / 2.0 - j * (BALL_DIAMETER + 4.0) + (row_length - 1) * (BALL_DIAMETER + 4.0) / 2 + get_random_nudge()
                 
-                # creates and adds the ball to the table
-                ballPosition = Coordinate(xPosition, yPosition)
-                stillBall = StillBall(currentBallNumber, ballPosition)
-                poolTable += stillBall
-                currentBallNumber -= 1  # Decrement to next ball number
+                y_position = TABLE_WIDTH / 2.0 + i * math.sqrt(3.0) / 2.0 * (BALL_DIAMETER + 4.0) + get_random_nudge()
 
-        # here we position the cue ball at the bottom of table
-        cueBallPosition = Coordinate(baseXPosition + random.uniform(-3.0, 3.0), TABLE_LENGTH - TABLE_WIDTH / 2.0)
-        cueBallVelocity = Coordinate(0.0, -1000.0)  # initial velocity for the simulation
-        cueBallAcceleration = Coordinate(0.0, 150.0)  # initial acceleration 
-        rollingCueBall = RollingBall(0, cueBallPosition, cueBallVelocity, cueBallAcceleration)
-        poolTable += rollingCueBall
+                # here we create a new StillBall at a calculated position
+                position = Coordinate(x_position, y_position)
+                colored_ball = StillBall(total_balls, position)
+                new_table += colored_ball
+                total_balls -= 1
 
-        return table.svg()
+        # add the cue ball
+        cue_ball_position = Coordinate(TABLE_WIDTH / 2.0 + random.uniform(-3.0, 3.0), TABLE_LENGTH - TABLE_WIDTH / 2.0)
+        cue_ball_velocity = Coordinate(0.0, -1000.0)  # Initial velocity of the cue ball, assuming it's hit straight on
+        cue_ball_acceleration = Coordinate(0.0, 150.0)  # Assuming some initial acceleration
+        cue_ball = StillBall(0, cue_ball_position)  # Using 0 as the id for the cue ball
+        new_table += cue_ball
 
+        return new_table
 
+        
 class Database:
     
     # create and open a database connection to a file 
@@ -463,8 +454,8 @@ class Database:
                     xvel = xvel or 0
                     yvel = yvel or 0
                     velocity = Coordinate(xvel, yvel)
-                    velSpeed = phylib.phylib_length(velocity)
-                    drag_x, drag_y = (-xvel / velSpeed * DRAG, -yvel / velSpeed * DRAG) if velSpeed != 0 else (0, 0)
+                    velvelspeed = phylib.phylib_length(velocity)
+                    drag_x, drag_y = (-xvel / velvelspeed * DRAG, -yvel / velvelspeed * DRAG) if velvelspeed != 0 else (0, 0)
                     ballObject = RollingBall(ballNo, Coordinate(xpos, ypos), velocity, Coordinate(drag_x, drag_y))
 
                 table += ballObject # adds ball object to table
@@ -651,68 +642,62 @@ class Game:
                 raise ValueError("New game requires game name and player names")
     
     def shoot(self, gameName, playerName, table, xvel, yvel):
-        self.db = Database()  # creates an instance of database
-        print(f"Shooting in game: {gameName} by player: {playerName} with velocities x: {xvel}, y: {yvel}")
-        
-        shotID = self.db.newShot(playerName, table, xvel, yvel, self.gameID)
-        print(f"New shot recorded with ID: {shotID}")
-        
-        cue_ball = table.cueBall()  # calls method to find cue ball     
-        if cue_ball is None:
-            print("Cue ball not found on table.")
-            return
-        
-        # changes cue ball into a rolling ball
-        cue_ball.type = phylib.PHYLIB_ROLLING_BALL
 
-        # set the x and y values of the cue ball's position / velocity
+        db = Database() # initalizes an instance of database
+        shotID = self.db.newShot(playerName, table, xvel, yvel, self.gameID)  # Log the shot in the database
+
+        cue_ball = table.cueBall()  # find the cue ball object on the table
+
+        if cue_ball is None:
+            print("No cue ball found.")
+            return None
+        
+        # retrieve the current position of the cue ball
+        xpos = cue_ball.obj.still_ball.pos.x
+        ypos = cue_ball.obj.still_ball.pos.y
+
+        # update the cue ball's state to a rolling ball with the given velocity
+        cue_ball.type = phylib.PHYLIB_ROLLING_BALL
+        cue_ball.obj.rolling_ball.number = 0
+        cue_ball.obj.rolling_ball.pos.x = xpos
+        cue_ball.obj.rolling_ball.pos.y = ypos
         cue_ball.obj.rolling_ball.vel.x = xvel
         cue_ball.obj.rolling_ball.vel.y = yvel
-        print(f"Cue ball set to rolling with velocity x: {xvel}, y: {yvel}")
 
-        # calculates the acceleration
-        velocity = Coordinate(xvel, yvel)
-        velSpeed = phylib.phylib_length(velocity)
-        print(f"Velocity speed calculated: {velSpeed}")
+        # initial acceleration is zero
+        xacc = yacc = 0
+        cue_ball.obj.rolling_ball.acc.x = xacc
+        cue_ball.obj.rolling_ball.acc.y = yacc
 
-        if velSpeed > phylib.PHYLIB_VEL_EPSILON:
-            cue_ball.obj.rolling_ball.acc.x = (xvel * -1.0 / velSpeed) * DRAG
-            cue_ball.obj.rolling_ball.acc.y = (yvel * -1.0 / velSpeed) * DRAG
-            print(f"Cue ball acceleration set to x: {cue_ball.obj.rolling_ball.acc.x}, y: {cue_ball.obj.rolling_ball.acc.y}")
+        # calculate the acceleration based on velocity and drag
+        velspeed = phylib.phylib_length(Coordinate(xvel, yvel))
+        if velspeed > VEL_EPSILON:
+            xacc = (-(xvel) / velspeed) * DRAG
+            yacc = (-(yvel) / velspeed) * DRAG
+
+        list_svg = []  # list to store SVG representations of the table states
+        segment = table  # start with the current table as the first segment
 
         while True:
-            # calls segment() to get the next segment from the table
-            newSegTable = table.segment()
-            
-            if not newSegTable:
-                print("No more segments to process, exiting loop.")
-                break  # exits loop
+            time = table.time  # initialize time for the current segment
+            segment = table.segment()  # get the next segment from the table
 
-            # calculate segment duration and frame count
-            lengthSegment = (newSegTable.time - table.time) / FRAME_INTERVAL
-            framesSegment = int(lengthSegment)
-            print(f"Processing segment with duration: {lengthSegment}, frames: {framesSegment}")
+            if segment:
+                segment_duration = segment.time - time
+                frames = int(segment_duration / FRAME_INTERVAL)  # Calculate the number of frames for this segment
 
-            for frame in range(framesSegment):
-                # calculates time for the current frame within the segment
-                frameTime = frame * FRAME_INTERVAL
-                # makes a new table state for this specific frame
-                frameTable = table.roll(frameTime)
-                frameTable.time = table.time + frameTime
+                for frame_index in range(frames):
+                    elapsed_time = frame_index * FRAME_INTERVAL
+                    newTable = table.roll(elapsed_time)  # Calculate new table state
+                    newTable.time = table.time + elapsed_time
 
-                savedTableID = self.db.writeTable(frameTable)
-                self.db.linkShotToTable(savedTableID, shotID)
-                print(f"Frame {frame} of segment saved with table ID: {savedTableID}")
+                    # save the state of the table at this frame to the database
+                    tableID = db.writeTable(newTable) + 1
+                    db.TShot(tableID, shotID)
+                    list_svg.append(newTable.svg())
+            else:
+                break  # exit the loop if no more segments are found
 
-            # updates current table to the new segment
-            table = newSegTable
+            table = segment  # move to the next segment
 
-        print("Shot processing completed.")
-
-
-            
-
-
-        
-
-
+        return list_svg, table
