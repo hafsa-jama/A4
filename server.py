@@ -22,6 +22,7 @@ svg_creation = instance_table.setup_pool_table() # sets up the pool table
 player1_name = ''
 player2_name = ''
 game_name = ''
+current_player = ''
 
 # here we have an HTTP server that includes a connection to the database
 class EnhancedHTTPServer(HTTPServer):
@@ -48,6 +49,17 @@ class MyHandler(BaseHTTPRequestHandler):
                     svg_content = svg_creation.svg()
                     # Replace the placeholder for SVG content with the actual SVG string
                     content = content.replace('<!-- SVG_CONTENT -->', svg_content)
+
+                    # here we add the current player's name to the content
+                    if current_player is player1_name:
+                        current = player2_name
+                    elif current_player == player2_name:
+                        current = player1_name
+                    else:
+                        current = player1_name
+
+                    content += f"currentPlayerName = '{current}'"
+
                     self.send_response(200)
                     self.send_header('Content-type', mimetype or 'application/octet-stream')
                     self.end_headers()
@@ -107,6 +119,8 @@ class MyHandler(BaseHTTPRequestHandler):
             player1Name = player1_name
             player2Name = player2_name
             gameName = game_name
+
+            self.set_player_and_ball(player1Name, player2Name)
             
             # read POST data and convert it from JSON to Python dictionary
             content_length = int(self.headers['Content-Length'])
@@ -224,6 +238,16 @@ class MyHandler(BaseHTTPRequestHandler):
         self.send_header("Content-length", str(len(content)))
         self.end_headers()
         self.wfile.write(content.encode())
+
+    # assigns players low and high
+    def set_player_and_ball(self, player1_name, player2_name):
+        global current_player, ball_set
+        if current_player is None or current_player == player2_name:
+            current_player = player1_name
+            ball_set = "low"
+        else:
+            current_player = player2_name
+            ball_set = "high"
 
     def send_error_response(self, code, message):
         """

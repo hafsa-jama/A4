@@ -607,6 +607,8 @@ class Database:
                         INSERT OR IGNORE INTO TableShot
                         VALUES(?, ?);
                         """, (tableID, shotID))
+        self.connection.commit()
+        current.close()
 
 class Game:
     def __init__(self, gameID=None, gameName=None, player1Name=None, player2Name=None):
@@ -649,23 +651,34 @@ class Game:
         cue_ball = table.cueBall()  # find the cue ball object on the table
 
         if cue_ball is None:
-            print("No cue ball found.")
-            return None
-        
-        # retrieve the current position of the cue ball
-        xpos = cue_ball.obj.still_ball.pos.x
-        ypos = cue_ball.obj.still_ball.pos.y
+            print("Making cue ball again.")
+            # If the cue ball does not exist, recreate it at the center
+            xpos = TABLE_WIDTH / 2.0 + random.uniform(-3.0, 3.0)
+            ypos = TABLE_LENGTH - TABLE_WIDTH / 2.0
+            pos = Coordinate(xpos, ypos)
+            rb = RollingBall(0, pos, Coordinate(0.0, 0.0), Coordinate(0.0, 0.0))  # Use RollingBall or StillBall depending on your game's logic
+            table += rb
+            print("Cue ball returned to center.")
+        else:
+            # If the cue ball exists, retrieve its position
+            xpos = cue_ball.obj.still_ball.pos.x
+            ypos = cue_ball.obj.still_ball.pos.y
 
         # update the cue ball's state to a rolling ball with the given velocity
         cue_ball.type = phylib.PHYLIB_ROLLING_BALL
+        
         cue_ball.obj.rolling_ball.number = 0
+        
         cue_ball.obj.rolling_ball.pos.x = xpos
         cue_ball.obj.rolling_ball.pos.y = ypos
+        
         cue_ball.obj.rolling_ball.vel.x = xvel
         cue_ball.obj.rolling_ball.vel.y = yvel
 
         # initial acceleration is zero
-        xacc = yacc = 0
+        xacc = 0
+        yacc = 0
+        
         cue_ball.obj.rolling_ball.acc.x = xacc
         cue_ball.obj.rolling_ball.acc.y = yacc
 
@@ -699,5 +712,13 @@ class Game:
                 break  # exit the loop if no more segments are found
 
             table = segment  # move to the next segment
+
+        # cue_ball_updated = table.cueBall()  # Retrieve the cue ball object from the table again
+        # if cue_ball_updated:
+        #     updated_xpos = cue_ball_updated.obj.rolling_ball.pos.x
+        #     updated_ypos = cue_ball_updated.obj.rolling_ball.pos.y
+        #     print(f"Cue ball updated position: x = {updated_xpos}, y = {updated_ypos}")
+        # else:
+        #     print("Cue ball not found on the table after the shot.")
 
         return list_svg, table

@@ -19,6 +19,7 @@
       }
 
         $('svg').mousemove(trackit);
+        $('#currentPlayer').text('Current Player: ' + currentPlayerName);
 
       });
 
@@ -28,6 +29,7 @@
 
   </head>
   <body>
+    <div id="currentPlayer">Current Player: </div>
     <div id="svg_box">
       <svg width="700" height="1375" viewBox="-25 -25 1400 2750"
             xmlns="http://www.w3.org/2000/svg"
